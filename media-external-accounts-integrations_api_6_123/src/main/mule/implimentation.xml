@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="1c9a0423-19d3-4cf2-b7be-dc77e3dd79c1" />
+	<sub-flow name="Put_ImplentationSub_Flow" doc:id="d24411ad-3676-4064-af1c-94bc402791c5" >
+		<logger level="INFO" doc:name="SFMCReq.payload" doc:id="1acad2b3-a3dd-4a94-a92d-d4452033bd9d" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "processed data from sfmcToMule",&#10;DetailedInfo: payload&#10;}]' />
+		<ee:transform doc:name="SFMC payload" doc:id="79b6dc5c-6410-4750-bc35-fc899d4d48a3">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpRequestDetails"><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"method" : "PUT",
+	"url" : p('http.requestor.url') ++ "/" ++ (vars.originalPayload.accounts.id joinBy "")
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="ba68bcb2-a8a9-41e8-8234-7baf93620e1a" >
+			<when expression="#[(isEmpty(payload.accounts[0].id))]">
+				<raise-error doc:name="Raise error" doc:id="2b9ea849-22e9-4861-a88c-568c4f10d6da" type="REQUEST:BAD_REQUEST" description='#[if (payload.accounts[0].id == null or isEmpty(payload.accounts[0].id)) "id is required."  else "BAD REQUEST."]'/>
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="ValidationLogger" doc:id="a71f18d7-996d-4c5e-8a9e-4f1f9f5deadb" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Validation flow started for mandatory fields",&#10;}]' />
+			</otherwise>
+		</choice>
+		<flow-ref doc:name="Flow Reference" doc:id="ed6fef1a-c60f-4582-92f1-41c466b5c6b7" name="common_validation_subflow" />
+		<ee:transform doc:name="Data_Mappings" doc:id="7188923d-28ca-4e28-bf78-e9b7035f2b25">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var Data = payload.accounts[0]
+---
+{"account":
+   {
+          "name": Data.accountName ,
+          "website": Data.website,
+          "type": [Data.accountType],
+         "parent_account_id": (Data.parentId  as Number) default null,
+   //       "shell_record": true,
+   //       "note": "Some notes",
+   //        "locked": true,
+   //           "legacy_id": "1",
+   //      "discount": 0,
+  //        "team": [
+ //      {
+ //       "user_id": "ADUSER003",
+ //       "share": 100,
+//        "type":Data.accountType 
+ //     }],
+          "address":{
+            "email": Data.attributes.email ,
+            "street1": Data.shippingAddress.addressLine1,
+            "street2": Data.shippingAddress.addressLine2,
+            "city": Data.shippingAddress.city,
+            "state": Data.shippingAddress.state,
+            "zip": Data.shippingAddress.zipcode,
+            "country": Data.shippingAddress.country,
+            "phone": Data.attributes.phone,
+            "mobile": Data.attributes.alternatePhone
+          },
+   //       "client_contacts": []    
+          } }]]></ee:set-payload>
+			</ee:message>
+			<ee:variables />
+		</ee:transform>
+		<flow-ref doc:name="Common_Account_Subflow" doc:id="038448d5-a1f9-4275-8bc5-9720e4bf4b15" name="Common_Account_Subflow"/>
+		<logger level="INFO" doc:name="Processed data from Boostr to mule" doc:id="3c13d00e-7cdb-46f2-99c8-a4ada67badbb" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Processed data from Boostr to mule",&#10;DetailedInfo: payload&#10;}]'/>
+		<ee:transform doc:name="Responce_payload" doc:id="d153f528-7b75-42cf-b7d9-39944b6eab4e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+if (vars.originalPayload.requestMode == "Minimal")  
+  {
+    "requestId": vars.originalPayload.requestId,
+    "requestedBy": vars.originalPayload.requestedBy,
+    "adServerInstanceId": vars.originalPayload.adServerInstanceId,
+    "result": {
+      "code": 200,
+      "status": "success",
+      "additionalStatus": {},
+      "adServerLogId": "",
+      "shortMessage": "",
+      "verboseMessage": ""
+    },
+    "additionalInfo": [
+                    {
+                        "type": "error",
+                        "accountId": (payload.id)  as String,
+                        "relatedAccounts": [],
+                        "relatedContacts": []
+                    },
+                    {
+                        "type": "info",
+                        "accountId":  (payload.id)  as String,
+                        "relatedAccounts": [],
+                        "relatedContacts": []
+                    }
+    ],
+     "minimalResults": vars.originalPayload.accounts map ((account, index) -> {
+    (account.accountCode): payload.id as String
+})
+     
+    
+    
+  }
+else {
+    "requestId": vars.originalPayload.requestId,
+    "requestedBy": vars.originalPayload.requestedBy,
+    "adServerInstanceId": vars.originalPayload.adServerInstanceId,
+    "result": {
+      "code": 200,
+      "status": "success",
+      "additionalStatus": {},
+      "adServerLogId": "",
+      "shortMessage": "",
+      "verboseMessage": ""
+    },
+    "additionalInfo": [
+      {
+        "type": "error",
+        "accountId": (payload.id)  as String,
+        "relatedAccounts": [],
+        "relatedContacts": []
+      },
+      {
+        "type": "info",
+        "accountId": (payload.id) as String,
+        "relatedAccounts": [],
+        "relatedContacts": []
+      }
+    ],
+    "minimalResults": [],
+    "detailResults": {
+        "id": (payload.id as String) default "",
+        "accountType": (payload."type" joinBy "") default "",
+        "accountName": (payload.name) default "",
+        "description": (vars.originalPayload.accounts.description joinBy "") default "",
+        "adServerUserId": (vars.originalPayload.accounts.adServerUserId joinBy "") default "",
+        "accountNumber": (vars.originalPayload.accounts.accountNumber joinBy "") default "",
+        "numberOfEmployees": ((vars.originalPayload.accounts.numberOfEmployees joinBy "") as Number) default "",
+        "industry": (vars.originalPayload.accounts.industry joinBy "") default "",
+        "parent_account_id": (payload.parent_account_id as String) default "",
+        "rating": (vars.originalPayload.accounts.rating joinBy "") default "",
+        "website": (payload.website) default "",
+        "phone": (vars.originalPayload.accounts.phone joinBy "") default "",
+        "address": {
+          "addressLine1": (payload.address.street1) default "",
+          "addressLine2": (payload.address.street2) default "",
+           "addressLine3": (payload.address.street3) default "",
+          "city": (payload.address.city) default "",
+          "state": (payload.address.state) default "",
+          "zipcode": (payload.address.zip) default "",
+          "country": (payload.address.country) default ""
+        },
+        "billingAddress": {
+          "addressLine1": (payload.address.street1) default "",
+          "addressLine2": (payload.address.street2) default "",
+          "addressLine3": (payload.address.street3) default "",
+          "city": (payload.address.city) default "",
+          "state": (payload.address.state) default "",
+          "zipcode": (payload.address.zip) default "",
+          "country": (payload.address.country) default ""
+        },
+        "shippingAddress": {
+          "addressLine1": (payload.address.street1) default "",
+          "addressLine2": (payload.address.street2) default "",
+          "city": (payload.address.city) default "",
+          "state": (payload.address.state) default "",
+          "zipcode": (payload.address.zip) default "",
+          "country": (payload.address.country) default ""
+        },
+        "accountCode": (vars.originalPayload.accounts.accountCode) joinBy  "" default "",
+        "status": (vars.originalPayload.accounts.status joinBy "") default "",
+        "tentativeMappingId": "",
+        "additionalFields": (vars.originalPayload.accounts.additionalFields)[0] default "",
+        "attributes": ((vars.originalPayload.accounts.attributes default [{}])[0] as Object)++ {
+          "category": (payload.category) default "",
+          "sub_category": (payload.sub_category) default "",
+          "parent_account": (payload.parent_account) default "",
+          "region": (payload.region) default "",
+          "segment": (payload.segment) default "",
+          "holding_company": (payload.holding_company) default "",
+          "shell_record": (payload.shell_record) default "",
+          "note": (payload.note) default "",
+          "legacy_id": (payload.legacy_id) default "",
+          "discount": (payload.discount) default "",
+          "created_by": (payload.created_by) default "",
+          "updated_by": (payload.updated_by) default "",
+          "created_at": (payload.created_at) default "",
+          "updated_at": (payload.updated_at) default "",
+          "deleted_at": (payload.deleted_at) default "",
+          "custom_fields": (payload.custom_fields) default "",
+          "locked": (payload.locked) default "",
+          "team": (payload.team) default "",
+          "client_contacts": (payload.client_contacts) default ""
+        }
+    }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Processed data from Mule to SFMC" doc:id="152cf5b2-3837-4734-8f3e-6b5bfdc4d5c0" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "processed data from Mule To SFMC",&#10;DetailedInfo: payload&#10;}]'/>
+		<logger level="INFO" doc:name="EndLogger" doc:id="99733404-5318-423b-b1ce-95eccb11be59" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Put/media-external-accounts-integrations-api-Ended",&#10;EndTime: (now() as DateTime {timezone: "UTC"} &gt;&gt; "Asia/Kolkata") as LocalDateTime as String {format: "dd/MM/yyyy - HH:mm:ss"}&#10;}]' />
+	</sub-flow>
+	<sub-flow name="implimentationSub_Flow" doc:id="3cb2f58a-ce71-4f36-bd8e-3f434b3ea8b0" >
+		<logger level="INFO" doc:name="SFMCReq.payload" doc:id="a0cdce5c-356b-41fa-8065-b0196643b4a5" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "processed data from sfmcToMule",&#10;DetailedInfo: payload&#10;}]'/>
+		<ee:transform doc:name="SFMC payload" doc:id="58fcaeb9-929b-4703-bde9-072a9c7d76cf">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpRequestDetails"><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"method" : "POST",
+	"url" : p('http.requestor.url') 
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="ValidationLogger" doc:id="c68ebbad-7874-4a0a-a5a1-21770803d79f" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Validation flow started for mandatory fields",&#10;}]'/>
+		<flow-ref doc:name="Flow Reference" doc:id="ea896f5d-3997-49f9-882a-f74ef3c57167" name="common_validation_subflow"/>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="ceae0d92-c760-4ca8-930c-5178f238ecfa" collection="#[payload.accounts]" maxConcurrency="1">
+			<ee:transform doc:name="Data_Mappings" doc:id="1e6ab57c-053e-47b6-b6c9-4687696f3885">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json skipNullOn="everywhere"
+---
+{"account":
+   {
+          "name": payload.accountName ,
+          "website": payload.website,
+          "type": [payload.accountType],
+         "parent_account_id": (payload.parentId  as Number) default null,
+   //       "shell_record": true,
+   //       "note": "Some notes",
+   //        "locked": true,
+   //           "legacy_id": "1",
+   //      "discount": 0,
+  //        "team": [
+ //      {
+ //       "user_id": "ADUSER003",
+ //       "share": 100,
+//        "type":payload.accountType 
+ //     }],
+          "address":{
+            "email": payload.attributes.email ,
+            "street1": payload.shippingAddress.addressLine1,
+            "street2": payload.shippingAddress.addressLine2,
+            "city": payload.shippingAddress.city,
+            "state": payload.shippingAddress.state,
+            "zip": payload.shippingAddress.zipcode,
+            "country": payload.shippingAddress.country,
+            "phone": payload.attributes.phone,
+            "mobile": payload.attributes.alternatePhone
+          },
+   //       "client_contacts": []    
+          } }]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+			</ee:variables>
+		</ee:transform>
+			<flow-ref doc:name="Common_Account_Subflow" doc:id="13bf1646-0d5e-45f5-af83-345fbef1112f" name="Common_Account_Subflow" />
+		</parallel-foreach>
+		<logger level="INFO" doc:name="Processed data from Boostr to mule" doc:id="1c91f74b-453b-4d7e-847d-cd409adc0527" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Processed data from Boostr to mule",&#10;DetailedInfo: payload&#10;}]'/>
+		<ee:transform doc:name="Filter the payload" doc:id="d593f393-4f98-4961-b6a8-ee7ad34d6bfa" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload..payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Responce_payload" doc:id="572d9a9f-e65e-4654-abdc-9d05b4f6e27f">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var data = vars.originalPayload
+ 
+---
+if (data.requestMode == "Minimal")  
+  {
+    "requestId": data.requestId,
+    "requestedBy": data.requestedBy,
+    "adServerInstanceId": data.adServerInstanceId,
+    "result": {
+      "code": 200,
+      "status": "success",
+      "additionalStatus": {},
+      "adServerLogId": "",
+      "shortMessage": "",
+      "verboseMessage": ""
+    },
+    "additionalInfo": [
+                    {
+                        "type": "error",
+                        "accountId": payload map ((item1, index) -> item1.id) joinBy "",
+                        "relatedAccounts": [],
+                        "relatedContacts": []
+                    },
+                    {
+                        "type": "info",
+                        "accountId": payload map ((item1, index) -> item1.id) joinBy "",
+                        "relatedAccounts": [],
+                        "relatedContacts": []
+                    }
+    ],
+    "minimalResults": payload map ((item, index) -> {
+      (data.accounts[index].accountCode): (item.id as String) default ""
+    })
+  }
+else {
+    "requestId": data.requestId,
+    "requestedBy": data.requestedBy,
+    "adServerInstanceId": data.adServerInstanceId,
+    "result": {
+      "code": 200,
+      "status": "success",
+      "additionalStatus": {},
+      "adServerLogId": "",
+      "shortMessage": "",
+      "verboseMessage": ""
+    },
+    "additionalInfo": [
+      {
+        "type": "error",
+        "accountId": payload map ((item1, index) -> item1.id) joinBy "",
+        "relatedAccounts": [],
+        "relatedContacts": []
+      },
+      {
+        "type": "info",
+        "accountId": payload map ((item1, index) -> item1.id) joinBy "",
+        "relatedAccounts": [],
+        "relatedContacts": []
+      }
+    ],
+    "minimalResults": [],
+    "detailResults": payload map ((item, index) -> {
+        "id": (item.id as String) default "",
+        "accountType": (item."type" joinBy "") default "",
+        "accountName": (item.name) default "",
+        "description": (data.accounts.description joinBy "") default "",
+        "adServerUserId": (data.accounts.adServerUserId joinBy "") default "",
+        "accountNumber": (data.accounts.accountNumber joinBy "") default "",
+        "numberOfEmployees": ((data.accounts.numberOfEmployees joinBy "") as Number) default "",
+        "industry": (data.accounts.industry joinBy "") default "",
+        "parentId": (item.parent_account_id as String) default "",
+        "rating": (data.accounts.rating joinBy "") default "",
+        "website": (item.website) default "",
+        "phone": (data.accounts.phone joinBy "") default "",
+        "address": {
+          "addressLine1": (item.address.street1) default "",
+          "addressLine2": (item.address.street2) default "",
+           "addressLine3": (item.address.street3) default "",
+          "city": (item.address.city) default "",
+          "state": (item.address.state) default "",
+          "zipcode": (item.address.zip) default "",
+          "country": (item.address.country) default ""
+        },
+        "billingAddress": {
+          "addressLine1": (item.address.street1) default "",
+          "addressLine2": (item.address.street2) default "",
+          "addressLine3": (item.address.street3) default "",
+          "city": (item.address.city) default "",
+          "state": (item.address.state) default "",
+          "zipcode": (item.address.zip) default "",
+          "country": (item.address.country) default ""
+        },
+        "shippingAddress": {
+          "addressLine1": (item.address.street1) default "",
+          "addressLine2": (item.address.street2) default "",
+          "city": (item.address.city) default "",
+          "state": (item.address.state) default "",
+          "zipcode": (item.address.zip) default "",
+          "country": (item.address.country) default ""
+        },
+        "accountCode": (data.accounts[index].accountCode) default "",
+        "status": (data.accounts.status joinBy "") default "",
+        "tentativeMappingId": "",
+        "additionalFields": (data.accounts.additionalFields)[0] default "",
+        "attributes": ((data.accounts.attributes default [{}])[0] as Object) ++ {
+          "category": (item.category) default "",
+          "sub_category": (item.sub_category) default "",
+          "parent_account": (item.parent_account) default "",
+          "region": (item.region) default "",
+          "segment": (item.segment) default "",
+          "holding_company": (item.holding_company) default "",
+          "shell_record": (item.shell_record) default "",
+          "note": (item.note) default "",
+          "legacy_id": (item.legacy_id) default "",
+          "discount": (item.discount) default "",
+          "created_by": (item.created_by) default "",
+          "updated_by": (item.updated_by) default "",
+          "created_at": (item.created_at) default "",
+          "updated_at": (item.updated_at) default "",
+          "deleted_at": (item.deleted_at) default "",
+          "custom_fields": (item.custom_fields) default "",
+          "locked": (item.locked) default "",
+          "team": (item.team) default "",
+          "client_contacts": (item.client_contacts) default ""
+        }
+    })
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Processed data from Mule to SFMC" doc:id="d8508b29-9813-4ba7-abf0-06d74bb86fea" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "processed data from Mule To SFMC",&#10;DetailedInfo: payload&#10;}]' />
+		<logger level="INFO" doc:name="EndLogger" doc:id="67e1a1ad-5ec0-484a-8c2d-812097fde7ee" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Post/media-external-accounts-integrations-api-Ended",&#10;EndTime: (now() as DateTime {timezone: "UTC"} &gt;&gt; "Asia/Kolkata") as LocalDateTime as String {format: "dd/MM/yyyy - HH:mm:ss"}&#10;}]' />
+	</sub-flow>
+	<sub-flow name="Common_Account_Subflow" doc:id="7079709f-0d21-4284-a9ec-ff493c6ac0b4" >
+		<logger level="INFO" doc:name="processed data Mule To Boostr" doc:id="b4f0742a-118b-412e-88e0-2a7996ad390e" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "processed data Mule To Boostr",&#10;DetailedInfo: payload&#10;}]'/>
+		<http:request method="#[vars.httpRequestDetails.method]" doc:name="Boostr_Request_Connection" doc:id="9566e311-3372-4e35-9f44-2dddea708468" url="#[vars.httpRequestDetails.url]">
+			<http:headers><![CDATA[#[output application/json
+---
+{
+	"Authorization" : vars.Token,
+	"Accept" : p('http.requestor.Accept'),
+	"Content-Type": p('http.requestor.Content-Type')
+}]]]></http:headers>
+		</http:request>
+		<logger level="INFO" doc:name="Data Created Successfully" doc:id="26357a07-8ad6-4f02-8171-85261661af52" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Data Created Successfully In Boostr ",&#10;Time:  (now() as DateTime {timezone: "UTC"} &gt;&gt; "Asia/Kolkata") as LocalDateTime as String {format: "dd/MM/yyyy - HH:mm:ss"},&#10;DetailedInfo: payload&#10;}]'/>
+	</sub-flow>
+	<sub-flow name="common_validation_subflow" doc:id="52b625e5-a284-4a60-89b8-aadfa28f19d7" >
+		<choice doc:name="Choice" doc:id="f99577f3-de0d-4c25-9377-a68be3e942c9" >
+			<when expression="#[isEmpty(trim(payload.accounts[0].accountName)) &#10;or isEmpty(trim(payload.accounts[0].accountType)) &#10;or isEmpty(trim(payload.accounts[0].accountCode))]" >
+				<raise-error doc:name="Input-data_validation" doc:id="8f31c44c-7da3-4c21-b696-a8123708c9f2" type="REQUEST:BAD_REQUEST" description='#[if ((payload.accounts[0].accountName == null or isEmpty(trim(payload.accounts[0].accountName))) and (payload.accounts[0].accountType == null or isEmpty(trim(payload.accounts[0].accountType)))) "Both accountName and accountType are required." else if (payload.accounts[0].accountName == null or isEmpty(trim(payload.accounts[0].accountName))) "accountName is required." else if (payload.accounts[0].accountType == null or isEmpty(trim(payload.accounts[0].accountType))) "accountType is required."else if (payload.accounts[0].accountCode == null or isEmpty(trim(payload.accounts[0].accountCode))) "accountCode is required." else "BAD REQUEST."]' />
+			</when>
+			<when expression="#[isEmpty(trim(payload.requestId)) or &#10;                  isEmpty(trim(payload.requestedBy)) or &#10;                  isEmpty(trim(payload.requestMode)) or &#10;                  isEmpty(trim(payload.adServerInstanceId)) or &#10;                  isEmpty(trim(payload.adServerCode)) or &#10;                  isEmpty(trim(payload.adServerApplicationName))]" >
+				<raise-error doc:name="DataValidationforSFMC_Template" doc:id="a9e417cb-d9b8-4b01-aee6-ec3fea411437" type="REQUEST:BAD_REQUEST" description='  #[if (isEmpty(trim(payload.requestId))) "requestId is required."else if (isEmpty(trim(payload.requestedBy))) "requestedBy is required."else if (isEmpty(trim(payload.adServerInstanceId))) "adServerInstanceId is required."else if (isEmpty(trim(payload.adServerCode))) "adServerCode is required."else if (isEmpty(trim(payload.adServerApplicationName))) "adServerApplicationName is required."else "BAD REQUEST."]' />
+			</when>
+			<otherwise >
+				<flow-ref doc:name="retrieve-token-subflow" doc:id="18baea52-d37e-45e4-b607-8440f30f7c8d" name="retrieve-token-subflow" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+</mule>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+    <flow name="media-external-accounts-integrations-api-main" doc:id="0197e43b-d252-4714-b70c-531a34d95272">
+        <http:listener path="/api/*" config-ref="media-external-accounts-integrations-api-httpListenerConfig">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <set-variable value="#[payload]" doc:name="Set Variable" doc:id="0752954e-5f63-4e62-b5c5-53bba8780751" variableName="originalPayload" />
+        <logger level="INFO" doc:name="Logger" doc:id="e0cc0367-6bfc-4798-92b6-60990030b744" message="#[output application/json&#xA;---&#xA;{&#xA;correlationId : correlationId,&#xA;requestId : vars.originalPayload.requestId,&#xA;message: &quot;media-external-accounts-integrations-api-started&quot;,&#xA;StartTime: (now() as DateTime {timezone: &quot;UTC&quot;} &gt;&gt; &quot;Asia/Kolkata&quot;) as LocalDateTime as String {format: &quot;dd/MM/yyyy - HH:mm:ss&quot;}&#xA;}]" />
+        <apikit:router config-ref="media-external-accounts-integrations-api-config" />
+        <error-handler ref="Global_Error_Handler" />
+    </flow>
+    <flow name="media-external-accounts-integrations-api-console" doc:id="fbb6b9dc-5241-4bb6-92ea-0735126225cb">
+        <http:listener path="/console/*" config-ref="media-external-accounts-integrations-api-httpListenerConfig">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="media-external-accounts-integrations-api-config" />
+        <error-handler ref="Global_Error_Handler" />
+    </flow>
+    <flow name="post:\account:application\json:media-external-accounts-integrations-api-config" doc:id="8788d13d-00e1-49eb-9891-7334f968bb1f">
+        <logger level="INFO" doc:name="Start_Logger" doc:id="72b2c1d6-4ee7-47f3-9735-f1942b2d1d96" message="#[output application/json&#xA;---&#xA;{&#xA;correlationId : correlationId,&#xA;requestId : vars.originalPayload.requestId,&#xA;message: &quot;Post/media-external-accounts-integrations-api-started&quot;&#xA;}]" />
+        <flow-ref doc:name="Flow Reference" doc:id="8382cb42-f01a-48a0-a2c5-4c808c2b720b" name="implimentationSub_Flow" />
+    </flow>
+    <flow name="put:\account:application\json:media-external-accounts-integrations-api-config" doc:id="a4b4ed88-5104-41aa-a85b-30f1d99d2e9c">
+        <logger level="INFO" doc:name="Start_Logger" doc:id="c5e75fde-0a3d-4414-a73b-a50a1301c6e4" message='#[output application/json&#10;---&#10;{&#10;correlationId : correlationId,&#10;requestId : vars.originalPayload.requestId,&#10;message: "Put/media-external-accounts-integrations-api-started"&#10;}]'/>
+		<flow-ref doc:name="Flow Reference" doc:id="7cc88c06-a77b-469b-8383-f78bc209e515" name="Put_ImplentationSub_Flow" />
+    </flow>
+</mule>
